@@ -27,6 +27,18 @@ type Recipe struct {
 	RecipeText string   `csv:"recipe_text" json:"recipe_text"`
 }
 
+type RecipeContent struct {
+	Recipe *Recipe
+	Ingredients map[string]IngredientAmount
+	MethodLines []string
+	Suggestions []string
+}
+
+type IngredientAmount struct {
+	Amount     float64
+	Unit			 string
+}
+
 func main() {
 	db, err := bolt.Open(dataPath, 0666, nil)
 	if err != nil {
