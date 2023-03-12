@@ -1,17 +1,28 @@
 package main
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 func registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/list", basicAuth(list))
 	mux.HandleFunc("/recipe", basicAuth(recipe))
+	mux.HandleFunc("/extract", basicAuth(extractRecipes))
+	mux.HandleFunc("/create", basicAuth(create))
 }
 
 func list(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprintf(res, "error: method not allowed")
+		return
+	}
+
 	if err := templates.ExecuteTemplate(res, "list.html", recipes); err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(res, "error rendering list: %v", err)
@@ -20,6 +31,12 @@ func list(res http.ResponseWriter, req *http.Request) {
 }
 
 func recipe(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprintf(res, "error: method not allowed")
+		return
+	}
+
 	recipeName := req.URL.Query().Get("name")
 	if recipeName == "" {
 		res.WriteHeader(http.StatusBadRequest)
@@ -79,4 +96,116 @@ func recipe(res http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(res, "error rendering recipe: %v", err)
 		return
 	}
+}
+
+func extractRecipes(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprintf(w, "error: method not allowed")
+		return
+	}
+
+	recipesJSON, err := json.Marshal(recipes)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "error marshalling recipes: %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(recipesJSON)
+}
+
+func create(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprintf(w, "error: method not allowed")
+		return
+	}
+
+	// parse form
+	if err := r.ParseForm(); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "error parsing form: %v", err)
+		return
+	}
+
+	// validate form
+	recipeName := r.FormValue("name")
+	if recipeName == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "error: no recipe name provided")
+		return
+	}
+
+	recipeURL := r.FormValue("url")
+
+	servingSizeValue := r.FormValue("serving_size")
+	if servingSizeValue == "" {
+		servingSizeValue = "2"
+	}
+	var servingSize int
+	if i, err := strconv.Atoi(servingSizeValue); err != nil || i <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "error: invalid serving size provided")
+		return
+	} else {
+		servingSize = i
+	}
+
+	tagsValue := r.FormValue("tags")
+	var tags []string
+	if tagsValue != "" {
+		tags = strings.Split(tagsValue, ",")
+	}
+
+	ingredientsValue := r.FormValue("ingredients")
+	ingredients := map[string]*IngredientAmount{}
+	scanner := bufio.NewScanner(strings.NewReader(ingredientsValue))
+	for scanner.Scan() {
+		t := scanner.Text()
+		ingredient, ingredientAmount, err := parseIngredientLine(t)
+		if err != nil {
+			ingredients[ingredient] = nil
+		} else {
+			ingredients[ingredient] = &ingredientAmount
+		}
+	}
+
+	method := r.FormValue("method")
+	scanner = bufio.NewScanner(strings.NewReader(method))
+	var methodLines []string
+	for scanner.Scan() {
+		methodLines = append(methodLines, scanner.Text())
+	}
+
+	suggestions := r.FormValue("suggestions")
+	scanner = bufio.NewScanner(strings.NewReader(suggestions))
+	var suggestionLines []string
+	for scanner.Scan() {
+		suggestionLines = append(suggestionLines, scanner.Text())
+	}
+
+	modifications := r.FormValue("modifications")
+	scanner = bufio.NewScanner(strings.NewReader(modifications))
+	var modificationLines []string
+	for scanner.Scan() {
+		modificationLines = append(modificationLines, scanner.Text())
+	}
+
+	// create recipe
+	recipe := &Recipe{
+		Name:      recipeName,
+		Reference: recipeURL,
+		Tags:      tags,
+		Content: &RecipeContent{
+			Servings:      servingSize,
+			Ingredients:   ingredients,
+			MethodLines:   methodLines,
+			Suggestions:   suggestionLines,
+			Modifications: modificationLines,
+		},
+	}
+
+	recipes = append(recipes, recipe)
 }

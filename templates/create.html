@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Create Recipe</title>
+</head>
+<body>
+  <form action="/create" method="post">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" required>
+    <label for="tags">Tags</label>
+    <input type="text" id="tags" name="tags" required>
+    <label for="reference">Reference</label>
+    <input type="text" id="reference" name="reference" required>
+    <label for="servings">Servings</label>
+    <input type="text" id="servings" name="servings" required>
+    <label for="ingredients">Ingredients (formatted as "200 grams : flour, sifted")</label>
+    <textarea id="ingredients" name="ingredients" required></textarea>
+    <label for="method">Method</label>
+    <textarea id="method" name="method" required></textarea>
+    <label for="suggestions">Suggestions</label>
+    <textarea id="suggestions" name="suggestions" required></textarea>
+    <label for="modifications">Modifications</label>
+    <textarea id="modifications" name="modifications" required></textarea>
+    <input type="submit" value="Submit">
+  </form>
+</body>
+</html>
