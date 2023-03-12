@@ -4,24 +4,27 @@
   <title>Create Recipe</title>
 </head>
 <body>
-  <form action="/create" method="post">
-    <label for="name">Name</label>
-    <input type="text" id="name" name="name" required>
-    <label for="tags">Tags</label>
-    <input type="text" id="tags" name="tags" required>
-    <label for="reference">Reference</label>
-    <input type="text" id="reference" name="reference" required>
-    <label for="servings">Servings</label>
-    <input type="text" id="servings" name="servings" required>
-    <label for="ingredients">Ingredients (formatted as "200 grams : flour, sifted")</label>
-    <textarea id="ingredients" name="ingredients" required></textarea>
-    <label for="method">Method</label>
-    <textarea id="method" name="method" required></textarea>
-    <label for="suggestions">Suggestions</label>
-    <textarea id="suggestions" name="suggestions" required></textarea>
-    <label for="modifications">Modifications</label>
-    <textarea id="modifications" name="modifications" required></textarea>
-    <input type="submit" value="Submit">
-  </form>
+  <p>* Indicates required fields</p>
+  <div style="white-space: pre-line;">
+    <form action="/create" method="post">
+      <label for="name">Name *</label>
+      <input type="text" id="name" name="name" required>
+      <label for="tags">Tags</label>
+      <input type="text" id="tags" name="tags">
+      <label for="reference">Reference</label>
+      <input type="text" id="reference" name="reference">
+      <label for="servings">Servings</label>
+      <input type="text" id="servings" name="servings">
+      <label for="ingredients">Ingredients (formatted as "200 grams : flour, sifted")</label>
+      <textarea id="ingredients" name="ingredients"></textarea>
+      <label for="method">Method</label>
+      <textarea id="method" name="method"></textarea>
+      <label for="suggestions">Suggestions</label>
+      <textarea id="suggestions" name="suggestions"></textarea>
+      <label for="modifications">Modifications</label>
+      <textarea id="modifications" name="modifications"></textarea>
+      <input type="submit" value="Submit">
+    </form>
+  </div>
 </body>
 </html>

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -117,7 +118,17 @@ func extractRecipes(w http.ResponseWriter, r *http.Request) {
 }
 
 func create(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	switch r.Method {
+	case http.MethodGet:
+		if err := templates.ExecuteTemplate(w, "create.html", nil); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error rendering create: %v", err)
+			return
+		}
+		return
+	case http.MethodPost:
+		break
+	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		fmt.Fprintf(w, "error: method not allowed")
 		return
@@ -207,5 +218,12 @@ func create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	if err := generateTags(recipe, false); err != nil {
+		fmt.Printf("error generating tags: %v", err)
+	}
+
 	recipes = append(recipes, recipe)
+
+	// redirect to recipe
+	http.Redirect(w, r, fmt.Sprintf("/recipe?name=%s&serving_size=%d", url.QueryEscape(recipeName), servingSize), http.StatusFound)
 }
