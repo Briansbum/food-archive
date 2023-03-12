@@ -20,13 +20,13 @@ func list(res http.ResponseWriter, req *http.Request) {
 }
 
 func recipe(res http.ResponseWriter, req *http.Request) {
-	// parse recipe name and serving size from url
 	recipeName := req.URL.Query().Get("name")
 	if recipeName == "" {
 		res.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(res, "error: no recipe name provided")
 		return
 	}
+
 	servingSize := req.URL.Query().Get("serving_size")
 	if servingSize == "" {
 		res.WriteHeader(http.StatusBadRequest)
@@ -38,6 +38,17 @@ func recipe(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(res, "error: invalid serving size provided")
 		return
+	}
+
+	regenerateParam := req.URL.Query().Get("regenerate")
+	var regenerate bool
+	if regenerateParam != "" {
+		regenerate, err = strconv.ParseBool(regenerateParam)
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(res, "error: invalid regenerate provided")
+			return
+		}
 	}
 
 	// find recipe
@@ -55,10 +66,12 @@ func recipe(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// generate recipe
-	if err := generateRecipe(recipe, servingSizeInt); err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(res, "error generating recipe: %v", err)
-		return
+	if recipe.RecipeText == "" || regenerate {
+		if err := generateRecipe(recipe, servingSizeInt); err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(res, "error generating recipe: %v", err)
+			return
+		}
 	}
 
 	if err := templates.ExecuteTemplate(res, "recipe.html", recipe); err != nil {

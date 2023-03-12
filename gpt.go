@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/PullRequestInc/go-gpt3"
 )
@@ -49,11 +50,14 @@ func generateTags(overrideTags bool) {
 }
 
 func generateRecipe(recipe *Recipe, servingSize int) error {
-	resp, err := client.ChatCompletion(context.Background(), gpt3.ChatCompletionRequest{
+	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(60*time.Second))
+	defer cancelFunc()
+
+	resp, err := client.ChatCompletion(ctx, gpt3.ChatCompletionRequest{
 		Messages: []gpt3.ChatCompletionRequestMessage{
 			{
 				Role:    "system",
-				Content: "You are a personal chef with extensive experience in the home cooking space. You are tasked with creating a recipe for a new dish. You are given a title and a serving size. You must create a recipe that is suitable for the given serving size. You must also include a list of ingredients, a list of steps to cook the dish and serving/presentation suggestions. You can include any additional information you think is relevant.",
+				Content: "You are a personal chef with extensive experience in the home cooking space. You are tasked with creating a recipe for a new dish. You are given a title and a serving size. You must create a recipe that is suitable for the given serving size. You must also include a list of ingredients, a list of steps to cook the dish and suggestions. You can include any additional information you think is relevant, try to include creative suggestions around ingredients/methods/serving/presentation. Include line breaks in your recipe to separate the different sections/paragraphs/lines.",
 			},
 			{
 				Role:    "user",
@@ -65,6 +69,7 @@ func generateRecipe(recipe *Recipe, servingSize int) error {
 		return fmt.Errorf("error calling openai: %w", err)
 	}
 
+	fmt.Println(resp)
 	recipe.RecipeText = resp.Choices[0].Message.Content
 
 	return nil

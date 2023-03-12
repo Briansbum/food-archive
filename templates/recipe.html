@@ -4,6 +4,8 @@
   <title>{{ .Name }}</title>
 </head>
 <body>
-  {{ .RecipeText }}
+  <h1>{{ .Name }}</h1>
+  <a href="/recipe?name={{ .Name }}&serving_size=2&regenerate=true">Regenerate</a>
+  <p style="white-space: pre-line;">{{ .RecipeText }}</p>
 </body>
 </html>

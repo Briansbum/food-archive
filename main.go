@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	recipes   = []*Recipe{}
-	dataPath  = "/data/boltdb"
-	templates *template.Template
+	recipes         = []*Recipe{}
+	lastRecipesSize int
+	dataPath        = "/data/boltdb"
+	templates       *template.Template
 )
 
 type Recipe struct {
@@ -31,10 +32,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 	if err := loadRecipes(db); err != nil || len(recipes) == 0 {
-		if err2 := seedRecipes(db); err != nil {
-			log.Fatal(err, err2)
+		log.Printf("error loading recipes: %v\n", err)
+		log.Println("seeding recipes")
+		if err := seedRecipes(db); err != nil {
+			log.Fatal(err)
 		}
 	}
 
@@ -74,27 +81,34 @@ func loadRecipes(db *bolt.DB) error {
 			if err := json.Unmarshal(v, &recipes); err != nil {
 				return err
 			}
+			if len(recipes) > 0 {
+				break
+			}
 		}
-		fmt.Printf("loaded %d recipes from boltdb", len(recipes))
+		fmt.Printf("loaded %d recipes from boltdb\n", len(recipes))
 		return nil
 	})
 }
 
 func flushRecipes(db *bolt.DB) error {
 	return db.Update(func(tx *bolt.Tx) error {
+		r, err := json.Marshal(recipes)
+		if err != nil {
+			return err
+		}
+		if len(r) == lastRecipesSize {
+			return nil // no change in recipes since last flush
+		}
+		lastRecipesSize = len(r)
 		b, err := tx.CreateBucketIfNotExists([]byte("recipes"))
 		if err != nil {
 			return err
 		}
 		t := time.Now().UnixNano() / int64(time.Millisecond)
-		r, err := json.Marshal(recipes)
-		if err != nil {
-			return err
-		}
 		if err := b.Put([]byte(strconv.Itoa(int(t))), []byte(r)); err != nil {
 			return err
 		}
-		fmt.Printf("flushed %d recipes to boltdb", len(recipes))
+		fmt.Printf("flushed %d recipes to boltdb\n", len(recipes))
 		return nil
 	})
 }
@@ -110,7 +124,7 @@ func seedRecipes(db *bolt.DB) error {
 		return err
 	}
 
-	fmt.Printf("seeding %d recipes to boltdb", len(recipes))
+	fmt.Printf("seeding %d recipes to boltdb\n", len(recipes))
 
 	return flushRecipes(db)
 }
