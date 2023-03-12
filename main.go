@@ -21,22 +21,23 @@ var (
 )
 
 type Recipe struct {
-	Name       string   `csv:"name" json:"name"`
-	Reference  string   `csv:"reference" json:"reference"`
-	Tags       []string `csv:"tags" json:"tags"`
-	RecipeText string   `csv:"recipe_text" json:"recipe_text"`
+	Name       string         `csv:"name" json:"name"`
+	Reference  string         `csv:"reference" json:"reference"`
+	Tags       []string       `csv:"tags" json:"tags"`
+	RecipeText string         `csv:"recipe_text" json:"recipe_text"`
+	Content    *RecipeContent `csv:"-" json:"content"`
 }
 
 type RecipeContent struct {
-	Recipe *Recipe
-	Ingredients map[string]IngredientAmount
-	MethodLines []string
-	Suggestions []string
+	Ingredients   map[string]*IngredientAmount
+	MethodLines   []string
+	Suggestions   []string
+	Modifications []string
 }
 
 type IngredientAmount struct {
-	Amount     float64
-	Unit			 string
+	Amount string
+	Unit   string
 }
 
 func main() {
