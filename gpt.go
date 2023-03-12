@@ -57,7 +57,7 @@ func generateRecipe(recipe *Recipe, servingSize int) error {
 		Messages: []gpt3.ChatCompletionRequestMessage{
 			{
 				Role:    "system",
-				Content: "You are a personal chef with extensive experience in the home cooking space. You are tasked with creating a recipe for a new dish. You are given a title and a serving size. You must create a recipe that is suitable for the given serving size. You must also include a list of ingredients, a list of steps to cook the dish and suggestions. You can include any additional information you think is relevant, try to include creative suggestions around ingredients/methods/serving/presentation. Include line breaks in your recipe to separate the different sections/paragraphs/lines.",
+				Content: "You are a personal chef with extensive experience in the home cooking space. You are tasked with creating a recipe for a new dish. You are given a title and a serving size. You must create a recipe that is suitable for the given serving size. The output will be comprised of the following sections: Serving Size, Ingredients, Instructions, serving/Presentation Suggestions, Modifications. Include line breaks in your recipe to separate the different sections/paragraphs/lines.",
 			},
 			{
 				Role:    "user",
