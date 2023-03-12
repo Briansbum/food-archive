@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Recipes</title>
+  <title>Recipe List</title>
 </head>
 <body>
   <input type="text" id="search" onkeyup="search()" placeholder="Search for anything..">
@@ -18,7 +18,11 @@
         <tr>
           <td>{{ .Name }}</td>
           <td>{{ range .Tags }}"{{.}}" {{ end }}</td>
-          <td><a href="{{ .Reference }}" style="display:block;" target="_blank">{{ .Reference }}</a></td>
+          {{ if .Reference }}
+            <td><a href="{{ .Reference }}" style="display:block;" target="_blank">{{ .Reference }}</a></td>
+          {{ else }}
+            <td><a href="/recipe?name={{ .Name }}&serving_size=2" style="display:block;" target="_blank">Recipe</a></td>
+          {{ end }}
         </tr>
       {{ end }}
     </tbody>
