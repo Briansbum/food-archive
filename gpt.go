@@ -67,8 +67,9 @@ You must create a recipe that is suitable for the given serving size.
 The output will be comprised of the following sections: Serving Size, Ingredients, Instructions, Serving/Presentation Suggestions, Modifications.
 Suggestions and Modifications will contain at least three entry lines each.
 Include line breaks in your recipe to separate the different sections/paragraphs/lines.
-Weight and Volume units are in metric. Ingredients always have a name prefixed by a number and a unit. The unit is always singular. The number is always a whole number or a decimal to a maximum of 2 decimal places. The number and unit are separated by a space. The name is always lowercase. The number and unit are always lowercase. The number and unit are always separated by a space. If the ingredient has a quantity the name is always separated from the number and unit by an exclamation mark.
+All units are in metric but tsp/tbsp is okay. Ingredients always have a name prefixed by a number and a unit. The unit is always singular. The number is always a whole number or a decimal to a maximum of 2 decimal places. The number and unit are separated by a space. The name is always lowercase. The number and unit are always lowercase. The number and unit are always separated by a space. If the ingredient has a quantity the name is always separated from the number and unit by an exclamation mark.
 Ingredient examples: "1 cup : flour" is "250g : flour", "1tsp : salt" is "1tsp : salt" (no change), "1/2 cup : sugar" is "125g : sugar", "1/2 tsp : salt" is "1/2 tsp : salt" (no change).
+When cooking large pieces of meat include temperature targets. For example, "cook until the internal temperature reaches 70C".
 				`,
 			},
 			{
