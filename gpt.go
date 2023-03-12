@@ -4,33 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/PullRequestInc/go-gpt3"
 )
 
-type Recipe struct {
-	Name      string   `csv:"name" json:"name"`
-	Reference string   `csv:"reference" json:"reference"`
-	Tags      []string `csv:"tags" json:"tags"`
-}
+var (
+	client = gpt3.NewClient(os.Getenv("OPENAPI_KEY"), gpt3.WithDefaultEngine(gpt3.GPT3Dot5Turbo))
+)
 
-func generate() {
-	// Open and decode recipes.json
-	f, err := os.Open("recipes.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	var recipes []Recipe
-	if err := json.NewDecoder(f).Decode(&recipes); err != nil {
-		log.Fatal(err)
-	}
-
-	client := gpt3.NewClient("APIKEY", gpt3.WithDefaultEngine(gpt3.GPT3Dot5Turbo))
-
+func generateTags(overrideTags bool) {
 	for i := range recipes {
 		resp, err := client.ChatCompletion(context.Background(), gpt3.ChatCompletionRequest{
 			Messages: []gpt3.ChatCompletionRequestMessage{
@@ -48,9 +31,6 @@ func generate() {
 			fmt.Println("error calling openai:", err)
 		}
 
-		fmt.Println(recipes[i].Name)
-		fmt.Printf("resp: %+v\n", resp)
-
 		tagsString := resp.Choices[0].Message.Content
 
 		tags := []string{}
@@ -60,17 +40,10 @@ func generate() {
 			continue
 		}
 
-		recipes[i].Tags = tags
-	}
-
-	// Encode recipes into recipes_with_tags.json
-	f, err = os.Create("recipes_with_tags.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	if err := json.NewEncoder(f).Encode(recipes); err != nil {
-		log.Fatal(err)
+		if overrideTags {
+			recipes[i].Tags = tags
+		} else {
+			recipes[i].Tags = append(recipes[i].Tags, tags...)
+		}
 	}
 }
