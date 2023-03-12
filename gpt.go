@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -64,10 +65,11 @@ You are a personal chef with extensive experience in the home cooking space.
 You are tasked with creating a recipe for a new dish.
 You are given a title and a serving size. 
 You must create a recipe that is suitable for the given serving size.
-The output will be comprised of the following sections: Serving Size, Ingredients, Instructions, serving/Presentation Suggestions, Modifications.
+The output will be comprised of the following sections: Serving Size, Ingredients, Instructions, Serving/Presentation Suggestions, Modifications.
+Suggestions and Modifications will contain at least three entry lines each.
 Include line breaks in your recipe to separate the different sections/paragraphs/lines.
 Weight and Volume units are in metric. Ingredients always have a name prefixed by a number and a unit. The unit is always singular. The number is always a whole number or a decimal to a maximum of 2 decimal places. The number and unit are separated by a space. The name is always lowercase. The number and unit are always lowercase. The number and unit are always separated by a space. If the ingredient has a quantity the name is always separated from the number and unit by an exclamation mark.
-Ingredient examples: "1 cup flour" is "250g flour", "1tsp salt" is "1tsp salt" (no change), "1/2 cup sugar" is "125g sugar", "1/2 tsp salt" is "1/2 tsp salt" (no change).
+Ingredient examples: "1 cup : flour" is "250g : flour", "1tsp : salt" is "1tsp : salt" (no change), "1/2 cup : sugar" is "125g : sugar", "1/2 tsp : salt" is "1/2 tsp : salt" (no change).
 				`,
 			},
 			{
@@ -81,13 +83,16 @@ Ingredient examples: "1 cup flour" is "250g flour", "1tsp salt" is "1tsp salt" (
 	}
 
 	recipe.RecipeText = resp.Choices[0].Message.Content
-	parseRecipeText(recipe)
+	parseRecipeText(recipe, servingSize)
+
+	fmt.Printf("generated recipe content: %+v", recipe.Content)
 
 	return nil
 }
 
-func parseRecipeText(recipe *Recipe) {
+func parseRecipeText(recipe *Recipe, servingSize int) {
 	recipeContent := RecipeContent{
+		Servings:      servingSize,
 		Ingredients:   map[string]*IngredientAmount{},
 		MethodLines:   []string{},
 		Suggestions:   []string{},
@@ -97,41 +102,42 @@ func parseRecipeText(recipe *Recipe) {
 	scanner := bufio.NewScanner(strings.NewReader(recipe.RecipeText))
 	var section string
 	for scanner.Scan() {
-		if scanner.Text() == "" {
+		t := scanner.Text()
+		if t == "" {
 			continue
 		}
-		if scanner.Text() == "Ingredients" {
+		if strings.Contains(t, "Ingredients") {
 			section = "Ingredients"
 			continue
 		}
-		if scanner.Text() == "Instructions" {
+		if strings.Contains(t, "Instructions") {
 			section = "Instructions"
 			continue
 		}
-		if scanner.Text() == "Serving/Presentation Suggestions" {
+		if strings.Contains(t, "Serving/Presentation Suggestions") {
 			section = "Serving/Presentation Suggestions"
 			continue
 		}
-		if scanner.Text() == "Modifications" {
+		if strings.Contains(t, "Modifications") {
 			section = "Modifications"
 			continue
 		}
 
 		switch section {
 		case "Ingredients":
-			ingredient, ingredientAmount, err := parseIngredientLine(scanner.Text())
+			t = strings.TrimPrefix(t, "- ")
+			ingredient, ingredientAmount, err := parseIngredientLine(t)
 			if err != nil {
 				fmt.Println("ingredient line may be malformed:", err)
-				recipeContent.Ingredients[scanner.Text()] = nil
+				recipeContent.Ingredients[t] = nil
 			}
 			recipeContent.Ingredients[ingredient] = &ingredientAmount
 		case "Instructions":
-			recipeContent.MethodLines = append(recipeContent.MethodLines, scanner.Text())
+			recipeContent.MethodLines = append(recipeContent.MethodLines, regexp.MustCompile(`\d+\. `).ReplaceAllString(t, ""))
 		case "Serving/Presentation Suggestions":
-			recipeContent.Suggestions = append(recipeContent.Suggestions, scanner.Text())
+			recipeContent.Suggestions = append(recipeContent.Suggestions, strings.TrimPrefix(t, "- "))
 		case "Modifications":
-			recipeContent.Modifications = append(recipeContent.Modifications, scanner.Text())
-		default:
+			recipeContent.Modifications = append(recipeContent.Modifications, strings.TrimPrefix(t, "- "))
 		}
 	}
 
@@ -139,14 +145,14 @@ func parseRecipeText(recipe *Recipe) {
 }
 
 func parseIngredientLine(line string) (string, IngredientAmount, error) {
-	splitLine := strings.Split(line, "!")
+	splitLine := strings.Split(line, ":")
 	if len(splitLine) < 2 {
 		return line, IngredientAmount{}, fmt.Errorf("could not find unit in line: %s", line)
 	}
 	amountSplit := strings.Split(splitLine[0], " ")
 	ingredientAmount := IngredientAmount{
-		Amount: amountSplit[0],
-		Unit:   amountSplit[1],
+		Amount: strings.TrimSpace(amountSplit[0]),
+		Unit:   strings.TrimSpace(amountSplit[1]),
 	}
-	return splitLine[1], ingredientAmount, nil
+	return strings.TrimSpace(splitLine[1]), ingredientAmount, nil
 }

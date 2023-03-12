@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	// TODO: make this thread safe
 	recipes         = []*Recipe{}
 	lastRecipesSize int
 	dataPath        = "/data/boltdb"
@@ -29,6 +30,7 @@ type Recipe struct {
 }
 
 type RecipeContent struct {
+	Servings      int
 	Ingredients   map[string]*IngredientAmount
 	MethodLines   []string
 	Suggestions   []string

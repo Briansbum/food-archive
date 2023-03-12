@@ -6,6 +6,33 @@
 <body>
   <h1>{{ .Name }}</h1>
   <a href="/recipe?name={{ .Name }}&serving_size=2&regenerate=true">Regenerate</a>
-  <p style="white-space: pre-line;">{{ .RecipeText }}</p>
+  <!-- <div style="white-space: pre-line;"> -->
+  <div>
+    <p>Servings: {{ .Content.Servings }}</p>
+    <h2>Ingredients:</h2>
+    <ul>
+      {{ range $k, $v := .Content.Ingredients }}
+        <li>{{ $v.Amount }} {{ $v.Unit }} {{ $k }}</li>
+      {{ end }}
+    </ul>
+    <h2>Instructions:</h2>
+    <ol>
+      {{ range .Content.MethodLines }}
+        <li>{{ . }}</li>
+      {{ end }}
+    </ol>
+    <h2>Serving/Presentation Suggestions:</h2>
+    <ul>
+      {{ range .Content.Suggestions }}
+        <li>{{ . }}</li>
+      {{ end }}
+    </ul>
+    <h2>Modifications:</h2>
+    <ul>
+      {{ range .Content.Modifications }}
+        <li>{{ . }}</li>
+      {{ end }}
+    </ul>
+  </div>
 </body>
 </html>
