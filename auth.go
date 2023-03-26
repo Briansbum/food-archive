@@ -23,6 +23,8 @@ func basicAuth(next http.HandlerFunc) http.HandlerFunc {
 				next.ServeHTTP(w, r)
 				return
 			}
+
+			fmt.Println("denied access to ", username)
 		}
 
 		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)

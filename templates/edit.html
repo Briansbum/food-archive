@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ if .Name }}Edit Recipe for {{ .Name }}{{ else }}Create Recipe{{ end }}</title>
+</head>
+<body>
+  <p>* Indicates required fields</p>
+  <div style="white-space: pre-line;">
+    <form action="/edit" method="post">
+      <label for="name">Name *</label>
+      <input type="text" id="name" name="name" required placeholder="{{ .Name }}">
+      <label for="tags">Tags</label>
+      <input type="text" id="tags" name="tags" placeholder="{{ .Tags }}">
+      <label for="reference">Reference</label>
+      <input type="text" id="reference" name="reference" placeholder="{{ .Content.Reference }}">
+      <label for="servings">Servings</label>
+      <input type="text" id="servings" name="servings" placeholder="{{ .Content.Servings }}">
+      <label for="ingredients">Ingredients (formatted as "200 grams : flour, sifted")</label>
+      <textarea id="ingredients" name="ingredients" placeholder="{{ .Content.Ingredients }}"></textarea>
+      <label for="method">Method</label>
+      <textarea id="method" name="method" placeholder="{{ .Content.Method }}"></textarea>
+      <label for="suggestions">Suggestions</label>
+      <textarea id="suggestions" name="suggestions" placeholder="{{ .Content.Suggestions }}"></textarea>
+      <label for="modifications">Modifications</label>
+      <textarea id="modifications" name="modifications" placeholder="{{ .Content.Modifications }}"></textarea>
+      <input type="submit" value="Submit">
+    </form>
+  </div>
+</body>
+</html>
