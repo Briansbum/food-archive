@@ -14,14 +14,11 @@ import (
 )
 
 var (
-	// TODO: make this thread safe
-	recipes         = []*Recipe{}
-	lastRecipesSize int
-	dataPath        = "/data/boltdb"
-	templates       *template.Template
+	templates *template.Template
 )
 
 type Recipe struct {
+	Version    int            `csv:"version" json:"version"`
 	Name       string         `csv:"name" json:"name"`
 	Reference  string         `csv:"reference" json:"reference"`
 	Tags       []string       `csv:"tags" json:"tags"`
@@ -43,7 +40,7 @@ type IngredientAmount struct {
 }
 
 func main() {
-	db, err := bolt.Open(dataPath, 0666, nil)
+	db, err := bolt.Open("/data/boltdb", 0666, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,19 +49,26 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
-	if err := loadRecipes(db); err != nil || len(recipes) == 0 {
+	recipes := []*Recipe{}
+	if err := loadRecipes(db, recipes); err != nil || len(recipes) == 0 {
 		log.Printf("error loading recipes: %v\n", err)
-		log.Println("seeding recipes")
-		if err := seedRecipes(db); err != nil {
-			log.Fatal(err)
-		}
+		// log.Println("seeding recipes")
+		// if err := seedRecipes(db); err != nil {
+		// 	log.Fatal(err)
+		// }
+	}
+	if err := runMigrations(recipes); err != nil {
+		log.Fatal(err)
 	}
 
 	go func() {
+		r := 0
 		for {
-			if err := flushRecipes(db); err != nil {
+			nr, err := flushRecipes(db, recipes, r)
+			if err != nil {
 				fmt.Println(fmt.Errorf("error flushing recipes: %w", err).Error())
 			}
+			r = nr
 			time.Sleep(5 * time.Second)
 		}
 	}()
@@ -77,7 +81,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	registerRoutes(mux)
+	registerRoutes(mux, recipes)
 
 	fmt.Println("Listening on port 8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {
@@ -85,7 +89,7 @@ func main() {
 	}
 }
 
-func loadRecipes(db *bolt.DB) error {
+func loadRecipes(db *bolt.DB, recipes []*Recipe) error {
 	return db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("recipes"))
 		if b == nil {
@@ -105,16 +109,15 @@ func loadRecipes(db *bolt.DB) error {
 	})
 }
 
-func flushRecipes(db *bolt.DB) error {
-	return db.Update(func(tx *bolt.Tx) error {
-		r, err := json.Marshal(recipes)
-		if err != nil {
-			return err
-		}
-		if len(r) == lastRecipesSize {
-			return nil // no change in recipes since last flush
-		}
-		lastRecipesSize = len(r)
+func flushRecipes(db *bolt.DB, recipes []*Recipe, lastRecipesSize int) (int, error) {
+	r, err := json.Marshal(recipes)
+	if err != nil {
+		return lastRecipesSize, err
+	}
+	if len(r) == lastRecipesSize {
+		return lastRecipesSize, nil // no change in recipes since last flush
+	}
+	return len(r), db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("recipes"))
 		if err != nil {
 			return err
@@ -128,7 +131,7 @@ func flushRecipes(db *bolt.DB) error {
 	})
 }
 
-func seedRecipes(db *bolt.DB) error {
+func seedRecipes(db *bolt.DB, recipes []*Recipe) error {
 	f, err := os.Open("recipes_with_tags.json")
 	if err != nil {
 		return err
@@ -141,5 +144,16 @@ func seedRecipes(db *bolt.DB) error {
 
 	fmt.Printf("seeding %d recipes to boltdb\n", len(recipes))
 
-	return flushRecipes(db)
+	_, err = flushRecipes(db, recipes, 0)
+	return err
+}
+
+func runMigrations(recipes []*Recipe) error {
+	// if a recipe doesn't have a version, set it to 1
+	for _, r := range recipes {
+		if r.Version == 0 {
+			r.Version = 1
+		}
+	}
+	return nil
 }
