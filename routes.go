@@ -14,7 +14,7 @@ func registerRoutes(mux *http.ServeMux, recipes []*Recipe) {
 	mux.HandleFunc("/list", basicAuth(list(recipes)))
 	mux.HandleFunc("/recipe", basicAuth(recipe(recipes)))
 	mux.HandleFunc("/extract", basicAuth(extractRecipes(recipes)))
-	mux.HandleFunc("/create", basicAuth(create(recipes)))
+	mux.HandleFunc("/edit", basicAuth(edit(recipes)))
 }
 
 func list(recipes []*Recipe) http.HandlerFunc {
@@ -88,11 +88,13 @@ func recipe(recipes []*Recipe) http.HandlerFunc {
 
 		// generate recipe
 		if recipe.RecipeText == "" || regenerate {
-			if err := generateRecipe(recipe, servingSizeInt); err != nil {
+			newRecipeVersion, err := generateRecipe(recipe, servingSizeInt)
+			if err != nil {
 				res.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintf(res, "error generating recipe: %v", err)
 				return
 			}
+			recipe = newRecipeVersion
 		}
 
 		if err := templates.ExecuteTemplate(res, "recipe.html", recipe); err != nil {
@@ -123,13 +125,13 @@ func extractRecipes(recipes []*Recipe) http.HandlerFunc {
 	}
 }
 
-func create(recipes []*Recipe) http.HandlerFunc {
+func edit(recipes []*Recipe) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			if err := templates.ExecuteTemplate(w, "create.html", nil); err != nil {
+			if err := templates.ExecuteTemplate(w, "edit.html", nil); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "error rendering create: %v", err)
+				fmt.Fprintf(w, "error rendering edit: %v", err)
 				return
 			}
 			return

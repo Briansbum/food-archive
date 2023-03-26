@@ -51,7 +51,7 @@ func generateTags(recipe *Recipe, overrideTags bool) error {
 	return nil
 }
 
-func generateRecipe(recipe *Recipe, servingSize int) error {
+func generateRecipe(recipe *Recipe, servingSize int) (*Recipe, error) {
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(60*time.Second))
 	defer cancelFunc()
 
@@ -79,15 +79,17 @@ When cooking large pieces of meat include temperature targets. For example, "coo
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("error calling openai: %w", err)
+		return nil, fmt.Errorf("error calling openai: %w", err)
 	}
 
-	recipe.RecipeText = resp.Choices[0].Message.Content
-	parseRecipeText(recipe, servingSize)
+	newRecipeVersion := recipe
+	newRecipeVersion.Version = recipe.Version + 1
+	newRecipeVersion.RecipeText = resp.Choices[0].Message.Content
+	parseRecipeText(newRecipeVersion, servingSize)
 
-	fmt.Printf("generated recipe content: %+v", recipe.Content)
+	fmt.Printf("generated recipe content: %+v", newRecipeVersion.Content)
 
-	return nil
+	return newRecipeVersion, nil
 }
 
 func parseRecipeText(recipe *Recipe, servingSize int) {
