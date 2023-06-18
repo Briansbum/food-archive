@@ -23,7 +23,7 @@
           {{ if .Reference }}
             <td><a href="{{ .Reference }}" style="display:block;" target="_blank">{{ .Reference }}</a></td>
           {{ else }}
-            <td><a href="/recipe?name={{ .Name }}&serving_size=2" style="display:block;" target="_blank">Recipe</a></td>
+            <td><a href="/recipe?id={{ .ID }}&serving_size=2" style="display:block;" target="_blank">Recipe</a></td>
           {{ end }}
         </tr>
       {{ end }}

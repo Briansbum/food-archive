@@ -1,23 +1,23 @@
 package main
 
 import (
-	"encoding/json"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
-	"time"
 
-	bolt "go.etcd.io/bbolt"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
 	templates *template.Template
+	dbFile    string = "recipes.db"
 )
 
 type Recipe struct {
+	ID         int            `csv:"id" json:"id"`
 	Version    int            `csv:"version" json:"version"`
 	Name       string         `csv:"name" json:"name"`
 	Reference  string         `csv:"reference" json:"reference"`
@@ -40,38 +40,23 @@ type IngredientAmount struct {
 }
 
 func main() {
-	db, err := bolt.Open("/data/boltdb", 0666, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			log.Fatal(err)
-		}
-	}()
-	recipes := []*Recipe{}
-	if err := loadRecipes(db, recipes); err != nil || len(recipes) == 0 {
-		log.Printf("error loading recipes: %v\n", err)
-		// log.Println("seeding recipes")
-		// if err := seedRecipes(db); err != nil {
-		// 	log.Fatal(err)
-		// }
-	}
-	if err := runMigrations(recipes); err != nil {
-		log.Fatal(err)
+	if filename, ok := os.LookupEnv("DB_FILE"); ok {
+		dbFile = filename
 	}
 
-	go func() {
-		r := 0
-		for {
-			nr, err := flushRecipes(db, recipes, r)
-			if err != nil {
-				fmt.Println(fmt.Errorf("error flushing recipes: %w", err).Error())
-			}
-			r = nr
-			time.Sleep(5 * time.Second)
+	db, err := sql.Open("sqlite3", dbFile)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer db.Close()
+
+	if ok, err := checkDBSeeded(db); err != nil {
+		log.Fatalf("unable to verify that the db is set up correctly, got err: %+v", err)
+	} else if !ok {
+		if err := seedRecipes(db); err != nil {
+			log.Fatalf("unable to seed recipes, got err: %+v\n", err)
 		}
-	}()
+	}
 
 	t, err := template.ParseGlob("templates/*")
 	if err != nil {
@@ -81,79 +66,10 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	registerRoutes(mux, recipes)
+	registerRoutes(mux, db)
 
 	fmt.Println("Listening on port 8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		panic(err)
 	}
-}
-
-func loadRecipes(db *bolt.DB, recipes []*Recipe) error {
-	return db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("recipes"))
-		if b == nil {
-			return nil
-		}
-		c := b.Cursor()
-		for k, v := c.Last(); k != nil; k, v = c.Prev() {
-			if err := json.Unmarshal(v, &recipes); err != nil {
-				return err
-			}
-			if len(recipes) > 0 {
-				break
-			}
-		}
-		fmt.Printf("loaded %d recipes from boltdb\n", len(recipes))
-		return nil
-	})
-}
-
-func flushRecipes(db *bolt.DB, recipes []*Recipe, lastRecipesSize int) (int, error) {
-	r, err := json.Marshal(recipes)
-	if err != nil {
-		return lastRecipesSize, err
-	}
-	if len(r) == lastRecipesSize {
-		return lastRecipesSize, nil // no change in recipes since last flush
-	}
-	return len(r), db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte("recipes"))
-		if err != nil {
-			return err
-		}
-		t := time.Now().UnixNano() / int64(time.Millisecond)
-		if err := b.Put([]byte(strconv.Itoa(int(t))), []byte(r)); err != nil {
-			return err
-		}
-		fmt.Printf("flushed %d recipes to boltdb\n", len(recipes))
-		return nil
-	})
-}
-
-func seedRecipes(db *bolt.DB, recipes []*Recipe) error {
-	f, err := os.Open("recipes_with_tags.json")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	if err := json.NewDecoder(f).Decode(&recipes); err != nil {
-		return err
-	}
-
-	fmt.Printf("seeding %d recipes to boltdb\n", len(recipes))
-
-	_, err = flushRecipes(db, recipes, 0)
-	return err
-}
-
-func runMigrations(recipes []*Recipe) error {
-	// if a recipe doesn't have a version, set it to 1
-	for _, r := range recipes {
-		if r.Version == 0 {
-			r.Version = 1
-		}
-	}
-	return nil
 }

@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	client = gpt3.NewClient(os.Getenv("OPENAPI_KEY"), gpt3.WithDefaultEngine(gpt3.GPT3Dot5Turbo))
+	client = gpt3.NewClient(os.Getenv("OPENAI_KEY"), gpt3.WithDefaultEngine(gpt3.GPT3Dot5Turbo))
 )
 
 func generateTags(recipe *Recipe, overrideTags bool) error {
@@ -60,6 +60,7 @@ func generateRecipe(recipe *Recipe, servingSize int) (*Recipe, error) {
 			{
 				Role: "system",
 				Content: `
+Think carefully about this.
 You are a personal chef with extensive experience in the home cooking space.
 You are tasked with creating a recipe for a new dish.
 You are given a title and a serving size. 

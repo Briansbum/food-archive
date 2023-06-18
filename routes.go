@@ -2,22 +2,24 @@ package main
 
 import (
 	"bufio"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 )
 
-func registerRoutes(mux *http.ServeMux, recipes []*Recipe) {
-	mux.HandleFunc("/list", basicAuth(list(recipes)))
-	mux.HandleFunc("/recipe", basicAuth(recipe(recipes)))
-	mux.HandleFunc("/extract", basicAuth(extractRecipes(recipes)))
-	mux.HandleFunc("/edit", basicAuth(edit(recipes)))
+func registerRoutes(mux *http.ServeMux, db *sql.DB) {
+	mux.HandleFunc("/list", basicAuth(list(db)))
+	mux.HandleFunc("/recipe", basicAuth(recipe(db)))
+	mux.HandleFunc("/extract", basicAuth(extractRecipes(db)))
+	mux.HandleFunc("/edit", basicAuth(edit(db)))
 }
 
-func list(recipes []*Recipe) http.HandlerFunc {
+func list(db *sql.DB) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			res.WriteHeader(http.StatusMethodNotAllowed)
@@ -25,7 +27,14 @@ func list(recipes []*Recipe) http.HandlerFunc {
 			return
 		}
 
-		if err := templates.ExecuteTemplate(res, "list.html", recipes); err != nil {
+		recipesMeta, err := getAllRecipeMeta(db)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(res, "error getting recipe metadata: %+v", err)
+			return
+		}
+
+		if err := templates.ExecuteTemplate(res, "list.html", recipesMeta); err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(res, "error rendering list: %v", err)
 			return
@@ -33,7 +42,7 @@ func list(recipes []*Recipe) http.HandlerFunc {
 	}
 }
 
-func recipe(recipes []*Recipe) http.HandlerFunc {
+func recipe(db *sql.DB) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			res.WriteHeader(http.StatusMethodNotAllowed)
@@ -41,10 +50,17 @@ func recipe(recipes []*Recipe) http.HandlerFunc {
 			return
 		}
 
-		recipeName := req.URL.Query().Get("name")
-		if recipeName == "" {
+		recipeIDstr := req.URL.Query().Get("id")
+		if recipeIDstr == "" {
 			res.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(res, "error: no recipe name provided")
+			fmt.Fprintf(res, "error: no recipe ID provided")
+			return
+		}
+
+		recipeID, err := strconv.Atoi(recipeIDstr)
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(res, "error: recipe ID must be an integer")
 			return
 		}
 
@@ -72,13 +88,13 @@ func recipe(recipes []*Recipe) http.HandlerFunc {
 			}
 		}
 
-		// find recipe
-		var recipe *Recipe
-		for _, r := range recipes {
-			if r.Name == recipeName {
-				recipe = r
-				break
-			}
+		// find recipe by ID
+		recipe, err := getRecipeByID(db, recipeID)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(res, "error: unable to check DB for recipe")
+			log.Println(err.Error())
+			return
 		}
 		if recipe == nil {
 			res.WriteHeader(http.StatusNotFound)
@@ -97,6 +113,8 @@ func recipe(recipes []*Recipe) http.HandlerFunc {
 			recipe = newRecipeVersion
 		}
 
+		//TODO: write new recipeVersion to dB
+
 		if err := templates.ExecuteTemplate(res, "recipe.html", recipe); err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(res, "error rendering recipe: %v", err)
@@ -105,11 +123,18 @@ func recipe(recipes []*Recipe) http.HandlerFunc {
 	}
 }
 
-func extractRecipes(recipes []*Recipe) http.HandlerFunc {
+func extractRecipes(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			fmt.Fprintf(w, "error: method not allowed")
+			return
+		}
+
+		recipes, err := getAllRecipes(db)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error fetching recipes: %v", err)
 			return
 		}
 
@@ -125,7 +150,7 @@ func extractRecipes(recipes []*Recipe) http.HandlerFunc {
 	}
 }
 
-func edit(recipes []*Recipe) http.HandlerFunc {
+func edit(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -231,6 +256,8 @@ func edit(recipes []*Recipe) http.HandlerFunc {
 			fmt.Printf("error generating tags: %v", err)
 		}
 
+		//TODO: implement recipe put
+		recipes := []*Recipe{}
 		recipes = append(recipes, recipe)
 
 		// redirect to recipe
