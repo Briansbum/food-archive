@@ -9,6 +9,61 @@ import (
 	"strings"
 )
 
+func insertRecipeVersion(db *sql.DB, recipe *Recipe) (*Recipe, error) {
+	storedIDForParent := recipe.ID
+	recipe.ID = 0
+
+	insertPrep, err := db.Prepare("INSERT INTO recipes(parent_id, version, name, reference, recipe_data) values(?,?,?,?,?)")
+	if err != nil {
+		return nil, fmt.Errorf("unable to prepare for recipe insertion: %w", err)
+	}
+
+	recipe_data, err := json.Marshal(recipe)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal recipe as json for insertion: %w", err)
+	}
+
+	if _, err := insertPrep.Exec(storedIDForParent, recipe.Version+1, recipe.Name, recipe.Reference, recipe_data); err != nil {
+		return nil, fmt.Errorf("unable to insert new recipe version: %w", err)
+	}
+
+	// read recipe back on parent_id
+	readbackPrep, err := db.Prepare("SELECT id, recipe_data FROM recipes WHERE parent_id = ?")
+	if err != nil {
+		return nil, fmt.Errorf("unable to prepare for readback, your new recipe can be found in /list")
+	}
+
+	var (
+		idN         sql.NullInt16
+		recipeDataN sql.NullString
+	)
+	if err := readbackPrep.QueryRow(storedIDForParent).Scan(&idN, &recipeDataN); err != nil {
+		return nil, fmt.Errorf("unable to scan row: %w", err)
+	}
+
+	var (
+		id              int
+		new_recipe_data string
+	)
+	if ok := idN.Valid; ok {
+		id = int(idN.Int16)
+	} else {
+		return nil, fmt.Errorf("unable to find recipe")
+	}
+	if ok := recipeDataN.Valid; ok {
+		new_recipe_data = recipeDataN.String
+	}
+
+	newRecipe := &Recipe{}
+	if err := json.Unmarshal([]byte(new_recipe_data), newRecipe); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal recipe we just wrote: %w", err)
+	}
+
+	newRecipe.ID = id
+
+	return newRecipe, nil
+}
+
 func getAllRecipeMeta(db *sql.DB) ([]*Recipe, error) {
 	prep, err := db.Prepare("SELECT id, parent_id, version, name, reference FROM recipes")
 	if err != nil {

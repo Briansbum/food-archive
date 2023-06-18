@@ -1,3 +1,6 @@
 - add edit to the recipe page
 - change the rules around overriding tags during creation
 - change the format in the db to allow recipe versioning
+
+- fake calls to gpt for when we're testing generation logic
+- fix new recipe text generation flow

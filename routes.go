@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 )
@@ -110,10 +109,16 @@ func recipe(db *sql.DB) http.HandlerFunc {
 				fmt.Fprintf(res, "error generating recipe: %v", err)
 				return
 			}
-			recipe = newRecipeVersion
-		}
 
-		//TODO: write new recipeVersion to dB
+			newRecipe, err := insertRecipeVersion(db, newRecipeVersion)
+			if err != nil {
+				res.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(res, "error inserting recipe version: %v", err)
+				return
+			}
+
+			recipe = newRecipe
+		}
 
 		if err := templates.ExecuteTemplate(res, "recipe.html", recipe); err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
@@ -256,11 +261,14 @@ func edit(db *sql.DB) http.HandlerFunc {
 			fmt.Printf("error generating tags: %v", err)
 		}
 
-		//TODO: implement recipe put
-		recipes := []*Recipe{}
-		recipes = append(recipes, recipe)
+		newRecipe, err := insertRecipeVersion(db, recipe)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error: unable to commit recipe to db")
+			return
+		}
 
 		// redirect to recipe
-		http.Redirect(w, r, fmt.Sprintf("/recipe?name=%s&serving_size=%d", url.QueryEscape(recipeName), servingSize), http.StatusFound)
+		http.Redirect(w, r, fmt.Sprintf("/recipe?id=%d&serving_size=%d", newRecipe.ID, servingSize), http.StatusFound)
 	}
 }

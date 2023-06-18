@@ -86,7 +86,7 @@ When cooking large pieces of meat include temperature targets. For example, "coo
 	}
 
 	newRecipeVersion := recipe
-	newRecipeVersion.Version = recipe.Version + 1
+	newRecipeVersion.Version = recipe.Version
 	newRecipeVersion.RecipeText = resp.Choices[0].Message.Content
 	parseRecipeText(newRecipeVersion, servingSize)
 
