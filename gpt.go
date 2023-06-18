@@ -10,22 +10,23 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PullRequestInc/go-gpt3"
+	openai "github.com/sashabaranov/go-openai"
 )
 
 var (
-	client = gpt3.NewClient(os.Getenv("OPENAI_KEY"), gpt3.WithDefaultEngine(gpt3.GPT3Dot5Turbo))
+	client = openai.NewClient(os.Getenv("OPENAI_KEY"))
 )
 
 func generateTags(recipe *Recipe, overrideTags bool) error {
-	resp, err := client.ChatCompletion(context.Background(), gpt3.ChatCompletionRequest{
-		Messages: []gpt3.ChatCompletionRequestMessage{
+	resp, err := client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model: openai.GPT3Dot5Turbo,
+		Messages: []openai.ChatCompletionMessage{
 			{
-				Role:    "system",
+				Role:    openai.ChatMessageRoleSystem,
 				Content: "You are a data tagger for a global food entertainment brand. Your role is to read recipe titles/links and, using your exhaustive knowledge of food, provide ten tags for the recipe as a json string array. It can include cuisine, ingredients, cooking method, etc. For example, if you were given the recipe title “Chicken Tikka Masala”, you would return [“Indian”, “Chicken”, “Curry”]. Bias towrads ingredients making up the bulk of the tags, if the recipe is suitable for lunch then always include a lunch tag",
 			},
 			{
-				Role:    "user",
+				Role:    openai.ChatMessageRoleUser,
 				Content: recipe.Name,
 			},
 		},
@@ -55,10 +56,11 @@ func generateRecipe(recipe *Recipe, servingSize int) (*Recipe, error) {
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(60*time.Second))
 	defer cancelFunc()
 
-	resp, err := client.ChatCompletion(ctx, gpt3.ChatCompletionRequest{
-		Messages: []gpt3.ChatCompletionRequestMessage{
+	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model: openai.GPT3Dot5Turbo,
+		Messages: []openai.ChatCompletionMessage{
 			{
-				Role: "system",
+				Role: openai.ChatMessageRoleSystem,
 				Content: `
 Think carefully about this.
 You are a personal chef with extensive experience in the home cooking space.
@@ -68,13 +70,13 @@ You must create a recipe that is suitable for the given serving size.
 The output will be comprised of the following sections: Serving Size, Ingredients, Instructions, Serving/Presentation Suggestions, Modifications.
 Suggestions and Modifications will contain at least three entry lines each.
 Include line breaks in your recipe to separate the different sections/paragraphs/lines.
+Be careful with ingredient formatting, some examples: "1 cup : flour" is "250g : flour", "1tsp : salt" is "1tsp : salt" (no change), "1/2 cup : sugar" is "125g : sugar", "1/2 tsp : salt" is "1/2 tsp : salt" (no change).
 All units are in metric but tsp/tbsp is okay. Ingredients always have a name prefixed by a number and a unit. The unit is always singular. The number is always a whole number or a decimal to a maximum of 2 decimal places. The number and unit are separated by a space. The name is always lowercase. The number and unit are always lowercase. The number and unit are always separated by a space. If the ingredient has a quantity the name is always separated from the number and unit by an exclamation mark.
-Ingredient examples: "1 cup : flour" is "250g : flour", "1tsp : salt" is "1tsp : salt" (no change), "1/2 cup : sugar" is "125g : sugar", "1/2 tsp : salt" is "1/2 tsp : salt" (no change).
 When cooking large pieces of meat include temperature targets. For example, "cook until the internal temperature reaches 70C".
 				`,
 			},
 			{
-				Role:    "user",
+				Role:    openai.ChatMessageRoleUser,
 				Content: fmt.Sprintf("%s %d", recipe.Name, servingSize),
 			},
 		},
